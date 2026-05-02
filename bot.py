@@ -313,16 +313,22 @@ async def next_item(chat_id, context):
         f"🔥 Reply your bid now"
     )
 
-    path = item.get("image", "")
+   images = item.get("images", [])
 
-    if path and os.path.exists(path):
-        try:
-            with open(path, "rb") as img:
-                await context.bot.send_photo(
-                    chat_id,
-                    photo=img,
-                    caption=msg
-                )
+   if images:
+       chosen = random.choice(images)
+   else:
+       chosen = None
+
+   if chosen:
+       await context.bot.send_photo(
+           chat_id,
+           photo=chosen,
+           caption=msg
+    )
+   else:
+       await context.bot.send_message(chat_id, msg)
+
         except Exception:
             await context.bot.send_message(
                 chat_id,
@@ -596,6 +602,16 @@ async def kick(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⚠️ Kick {target}? Reply YES to confirm"
     )
 
+async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.photo:
+        photo = update.message.photo[-1]
+        file_id = photo.file_id
+        caption = update.message.caption or "no_name"
+
+        await update.message.reply_text(
+            f"{caption} -> {file_id}"
+        )
+
 async def unsoldlist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         return
@@ -612,6 +628,7 @@ async def unsoldlist(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f"{i}. {actress['name']}\n"
 
     await update.message.reply_text(msg)
+
 
 def main():
     app = (
@@ -639,6 +656,7 @@ def main():
     app.add_handler(CommandHandler("endauction", endauction))
     app.add_handler(CommandHandler("unsoldlist", unsoldlist))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    app.add_handler(MessageHandler(filters.PHOTO, get_file_id))
 
     print("🔥 Auction bot running...")
     app.run_polling(drop_pending_updates=True)

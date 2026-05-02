@@ -313,22 +313,20 @@ async def next_item(chat_id, context):
         f"🔥 Reply your bid now"
     )
 
-   images = item.get("images", [])
+    images = item.get("images", [])
 
-   if images:
-       chosen = random.choice(images)
-   else:
-       chosen = None
+    if images:
+        chosen = random.choice(images)
+    else:
+        chosen = None
 
-   if chosen:
-       await context.bot.send_photo(
-           chat_id,
-           photo=chosen,
-           caption=msg
-    )
-   else:
-       await context.bot.send_message(chat_id, msg)
-
+    if chosen:
+        try:
+            await context.bot.send_photo(
+                chat_id,
+                photo=chosen,
+                caption=msg
+            )
         except Exception:
             await context.bot.send_message(
                 chat_id,

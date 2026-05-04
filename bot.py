@@ -781,15 +781,6 @@ async def force_actress(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await next_item(update.effective_chat.id, context)
 
-
-# ── Photo file_id capture ────────────────────────────────────────────────────
-async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message and update.message.photo:
-        photo   = update.message.photo[-1]
-        caption = update.message.caption or "no_name"
-        await update.message.reply_text(f"{caption} -> {photo.file_id}")
-
-
 # ── Inline button callbacks ──────────────────────────────────────────────────
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -848,7 +839,6 @@ def main():
     app.add_handler(CommandHandler("unsoldlist",      unsoldlist))
     app.add_handler(CommandHandler("force",           force_actress))
     app.add_handler(CallbackQueryHandler(button_callback))
-    app.add_handler(MessageHandler(filters.PHOTO, get_file_id))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
     print("🔥 Actress Fanzy League — Auction Bot running...")

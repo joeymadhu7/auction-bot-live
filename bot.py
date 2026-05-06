@@ -41,7 +41,28 @@ auction = {
     "task":            None,
     "final_call_sent": False,
     "last_image":      None,
+    "milestones":      set(),
 }
+
+# ── Fancy font converter ──────────────────────────────────────────────────────
+def fancy(text: str) -> str:
+    """Convert A-Z a-z 0-9 to Mathematical Bold Script Unicode block."""
+    BOLD_SCRIPT_UPPER = (
+        "𝓐𝓑𝓒𝓓𝓔𝓕𝓖𝓗𝓘𝓙𝓚𝓛𝓜𝓝𝓞𝓟𝓠𝓡𝓢𝓣𝓤𝓥𝓦𝓧𝓨𝓩"
+    )
+    BOLD_SCRIPT_LOWER = (
+        "𝓪𝓫𝓬𝓭𝓮𝓯𝓰𝓱𝓲𝓳𝓴𝓵𝓶𝓷𝓸𝓹𝓺𝓻𝓼𝓽𝓾𝓿𝔀𝔁𝔂𝔃"
+    )
+    result = []
+    for ch in text:
+        if "A" <= ch <= "Z":
+            result.append(BOLD_SCRIPT_UPPER[ord(ch) - ord("A")])
+        elif "a" <= ch <= "z":
+            result.append(BOLD_SCRIPT_LOWER[ord(ch) - ord("a")])
+        else:
+            result.append(ch)
+    return "".join(result)
+
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def is_admin(uid: int) -> bool:
@@ -65,9 +86,9 @@ def pick_image(images: list):
         return None
     if len(images) == 1:
         return images[0]
-    last      = auction.get("last_image")
-    choices   = [img for img in images if img != last]
-    chosen    = random.choice(choices if choices else images)
+    last    = auction.get("last_image")
+    choices = [img for img in images if img != last]
+    chosen  = random.choice(choices if choices else images)
     auction["last_image"] = chosen
     return chosen
 
@@ -295,6 +316,45 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
         )
 
+        # ── Milestone Images ──────────────────────────────────────────────────
+        current_bid = auction["bid"]
+
+        milestones = [
+            (15, "15"),
+            (22, "22"),
+            (35, "35"),
+        ]
+
+        texts = {
+            "15": "🔥 Bidding getting serious",
+            "22": "⚡ Auction heating up",
+            "35": "👑 Elite bidding war",
+        }
+
+        for amount_needed, key in milestones:
+            if current_bid >= amount_needed and key not in auction["milestones"]:
+                auction["milestones"].add(key)
+                item   = auction["item"]
+                images = item.get("images", [])
+                chosen = pick_image(images)
+                if chosen:
+                    try:
+                        await context.bot.send_photo(
+                            auction["chat_id"],
+                            photo=chosen,
+                            caption=(
+                                f"{divider()}\n"
+                                f"<b>{fancy(item['name'])}</b>\n\n"
+                                f"{texts[key]}\n\n"
+                                f"💰 Current Bid: <b>{current_bid} Cr</b>\n"
+                                f"🏷 Team: <b>{team['team_name']}</b>\n"
+                                f"{divider()}"
+                            ),
+                            parse_mode="HTML",
+                        )
+                    except Exception:
+                        pass
+
 
 # ── /startauction ────────────────────────────────────────────────────────────
 async def startauction(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -349,7 +409,7 @@ async def next_item(chat_id: int, context):
     else:
         await context.bot.send_message(
             chat_id,
-            "No actresses left in queue.",
+            f"{divider()}\n🏁 <b>AUCTION FULLY COMPLETED!</b>\n{divider()}",
             parse_mode="HTML",
         )
         return
@@ -363,14 +423,16 @@ async def next_item(chat_id: int, context):
         "end_time":        time.time() + BID_TIMEOUT,
         "final_call_sent": False,
         "last_image":      None,
+        "milestones":      set(),
     })
 
     remaining = len(actress_queue) + len(unsold_queue)
+
     msg = (
         f"{divider()}\n"
         f"🎭 <b>AUCTION LIVE</b>\n"
         f"{divider()}\n\n"
-        f"🌟 <b>{item['name']}</b>\n\n"
+        f"🌟 {fancy(item['name'])}\n\n"
         f"💰 Base Price: <b>{auction['bid']} Cr</b>\n"
         f"⏳ Timer: <b>{BID_TIMEOUT}s</b>\n"
         f"📦 Remaining: <b>{remaining}</b>\n\n"
@@ -416,7 +478,7 @@ async def next_item(chat_id: int, context):
     except Exception:
         pass
 
-    # Cancel any stale countdown task
+    # Cancel stale countdown task
     if auction.get("task") and not auction["task"].done():
         auction["task"].cancel()
 
@@ -453,7 +515,7 @@ async def countdown(context):
                 await context.bot.send_message(
                     auction["chat_id"],
                     f"⚠️ <b>FINAL CALL!</b>\n\n"
-                    f"No bids yet for <b>{auction['item']['name']}</b>\n"
+                    f"No bids yet for {fancy(auction['item']['name'])}\n"
                     f"Going <b>UNSOLD</b> unless someone bids! ❌",
                     parse_mode="HTML",
                 )
@@ -486,13 +548,13 @@ async def finalize(context):
 
         caption = (
             f"{divider()}\n"
-            f"🏆 <b>SOLD!</b>\n"
+            f"🏆 𝓢𝓞𝓛𝓓!\n"
             f"{divider()}\n\n"
-            f"🌟 <b>{item['name']}</b>\n\n"
-            f"👑 Team: <b>{t['team_name']}</b>\n"
-            f"💰 Price: <b>{bid} Cr</b>\n"
-            f"💼 Remaining Purse: <b>{t['purse']} Cr</b>\n"
-            f"👥 Squad: <b>{len(t['players'])}/{MAX_PLAYERS}</b>\n"
+            f"🌟 {fancy(item['name'])}\n\n"
+            f"👑 {fancy('Team')}: <b>{t['team_name']}</b>\n"
+            f"💰 {fancy('Price')}: <b>{bid} Cr</b>\n"
+            f"💼 {fancy('Remaining Purse')}: <b>{t['purse']} Cr</b>\n"
+            f"👥 {fancy('Squad')}: <b>{len(t['players'])}/{MAX_PLAYERS}</b>\n"
             f"{divider()}"
         )
 
@@ -534,7 +596,7 @@ async def finalize(context):
         unsold_queue.append(item)
         await context.bot.send_message(
             chat_id,
-            f"❌ <b>UNSOLD</b>: {item['name']}\n"
+            f"❌ <b>UNSOLD</b>: {fancy(item['name'])}\n"
             f"<i>She returns for the unsold round later 🔁</i>",
             parse_mode="HTML",
         )
@@ -780,6 +842,9 @@ async def force_actress(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
     await next_item(update.effective_chat.id, context)
+
+
+
 
 # ── Inline button callbacks ──────────────────────────────────────────────────
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
